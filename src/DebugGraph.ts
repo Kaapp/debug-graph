@@ -43,8 +43,8 @@ const defaultOptions: DebugGraphOptions = {
 };
 
 const defaultGraphSettings: GraphSettings = {
-  foreground: "#0000FF",
-  background: "#FF0000",
+  foreground: "#FF00FF",
+  background: "#220022",
   showRange: true,
   title: "Graph",
   style: "line",

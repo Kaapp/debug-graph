@@ -1,9 +1,9 @@
 const path = require("path");
 
 module.exports = {
-  mode: "development", // todo make prod version
+  mode: "development",
   entry: "./src/index.ts",
-  devtool: "inline-source-map", // disable in prod?
+  devtool: "inline-source-map",
   experiments: {
     outputModule: true,
   },
@@ -29,7 +29,7 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: [".tsx", ".ts", ".js"],
+    extensions: [".tsx", ".ts"],
   },
   output: {
     filename: "main.js",

@@ -1,4 +1,2 @@
-import { DebugGraph } from "./DebugGraph";
-import { MinimalDebugGraph } from "./MinimalDebugGraph";
-
-export { DebugGraph, MinimalDebugGraph };
+export { DebugGraph } from "./DebugGraph";
+export { MinimalDebugGraph } from "./MinimalDebugGraph";
