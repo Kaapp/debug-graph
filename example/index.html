@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Getting Started</title>
+  </head>
+  <body>
+    <script type="module">
+      import { DebugGraph } from './main.js';
+
+      const debugGraph = new DebugGraph();
+
+      debugGraph.attach();
+
+      debugGraph.add('fps', { 
+        foreground: '#00ffff', 
+        background: '#000040', 
+        style: 'fill',
+        title: "FPS",
+      });
+
+      debugGraph.add('down', {
+        foreground: '#00ffff', 
+        background: '#000040', 
+        style: 'fill',
+        title: "FPS",
+      })
+
+      debugGraph.add('longname', {
+        foreground: '#ff00ff', 
+        background: '#200020', 
+        style: 'line',
+        title: "A VERY LONG NAMEEEEEEE NAMEEEEEeeeeeeeeeee", 
+      });
+
+      debugGraph.add('scaling', {
+        foreground: '#ff00ff', 
+        background: '#200020', 
+        style: 'line',
+        title: "scalar",  
+      })
+
+      // do some logic to calculate values to display
+      let count = 0;
+      const rAF = (_timestamp) => {
+        const value = count / 10;
+
+        debugGraph.update('fps', 10 * (Math.round(100 * Math.sin(value)) / 100) + (count / 250));
+        debugGraph.update('down', 10 * (Math.round(100 * Math.sin(value)) / 100) - (count / 250));
+        debugGraph.update('longname', 10*  Math.round(100 * Math.sin(value)) / 100 + 250000);
+        debugGraph.update('scaling', count);
+
+        count++;
+        
+        requestAnimationFrame(rAF);
+      }
+
+      requestAnimationFrame(rAF);
+
+    </script>
+  </body>
+</html>
