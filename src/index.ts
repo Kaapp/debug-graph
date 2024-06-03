@@ -1,3 +1,4 @@
 import { DebugGraph } from "./DebugGraph";
+import { MinimalDebugGraph } from "./MinimalDebugGraph";
 
-export { DebugGraph };
+export { DebugGraph, MinimalDebugGraph };

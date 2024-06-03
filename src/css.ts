@@ -6,16 +6,14 @@ type CssConfig = {
 const containerCssClassName = "debug-graph-container";
 const sectionCssClassName = "debug-graph-section";
 const graphContainerCssClassName = "debug-graph-graph";
-const graphTitleCssClassName = "debug-graph-title";
-const graphValueCssClassName = "debug-graph-value";
+const graphContainerCollapsedCssClassName = "debug-graph-graph-collapsed";
 const graphCanvasCssClassName = "debug-graph-canvas";
 
 type CssKey =
   | "container"
+  | "graphContainerCollapsed"
   | "section"
   | "graphContainer"
-  | "graphTitle"
-  | "graphValue"
   | "graphCanvas";
 
 export const css: { [k in CssKey]: CssConfig } = {
@@ -29,18 +27,14 @@ export const css: { [k in CssKey]: CssConfig } = {
   },
   graphCanvas: {
     className: graphCanvasCssClassName,
-    cssString: `.${graphCanvasCssClassName}{}`,
+    cssString: `.${graphCanvasCssClassName}{display:block}`,
   },
   graphContainer: {
     className: graphContainerCssClassName,
-    cssString: `.${graphContainerCssClassName}{display:flex;flex:1;justify-content:space-between}`,
+    cssString: `.${graphContainerCssClassName}{overflow:hidden}`,
   },
-  graphTitle: {
-    className: graphTitleCssClassName,
-    cssString: `.${graphTitleCssClassName}{flex:0 1 100px;min-width:0;text-overflow:ellipsis;overflow:hidden}`,
-  },
-  graphValue: {
-    className: graphValueCssClassName,
-    cssString: `.${graphValueCssClassName}{flex: 0 1 auto;text-align:center}`,
+  graphContainerCollapsed: {
+    className: graphContainerCollapsedCssClassName,
+    cssString: `.${graphContainerCollapsedCssClassName}{}`,
   },
 } as const;

@@ -1,11 +1,14 @@
 import { css } from "./css";
 
 export type DebugGraphOptions = {
+  graphHeight?: number;
+  graphWidth?: number;
   width?: number;
   height?: number;
-  fontHeight?: number;
+  fontSize?: number;
   titleToValueRatio?: number;
   rangeDecayFactor?: number;
+  roundingFactor?: number;
 };
 
 export type GraphSettings = {
@@ -13,30 +16,42 @@ export type GraphSettings = {
   section?: string;
   foreground?: string;
   background?: string;
+  showRange?: boolean;
   style?: "line" | "fill";
+  minGraphRange?: number;
+  collapse?: boolean;
+  valuePrefix?: string;
+  valueSuffix?: string;
 };
 
 type Graph = {
   settings: GraphSettings;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
-  min?: number;
-  max?: number;
+  values: number[];
+  nextIndex: number; // so we know which value to swap without reallocating memory
 };
 
 const defaultOptions: DebugGraphOptions = {
+  graphHeight: 25,
+  graphWidth: 75,
+  fontSize: 5,
   height: 25,
   width: 75,
-  fontHeight: 5,
   titleToValueRatio: 0.6,
-  rangeDecayFactor: 1 / 128,
+  roundingFactor: 100,
 };
 
-const defaultSettings: GraphSettings = {
-  title: "Graph",
+const defaultGraphSettings: GraphSettings = {
   foreground: "#0000FF",
   background: "#FF0000",
+  showRange: true,
+  title: "Graph",
   style: "line",
+  minGraphRange: 1.5,
+  collapse: false,
+  valuePrefix: "",
+  valueSuffix: "",
 };
 
 export class DebugGraph {
@@ -70,8 +85,7 @@ export class DebugGraph {
       css.section.cssString,
       css.graphCanvas.cssString,
       css.graphContainer.cssString,
-      css.graphTitle.cssString,
-      css.graphValue.cssString,
+      css.graphContainerCollapsed.cssString,
     ].join("\n");
     document.head.appendChild(style);
   }
@@ -83,29 +97,33 @@ export class DebugGraph {
     }
 
     const settings = {
-      ...defaultSettings,
+      ...defaultGraphSettings,
       ...userSettings,
     };
 
     const pixelRatio = window.devicePixelRatio;
     const padding = pixelRatio;
-    const fontHeight = this.options.fontHeight * pixelRatio;
+    const fontSize = this.options.fontSize * pixelRatio;
     const container = document.createElement("div");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
     canvas.className = css.graphCanvas.className;
-    canvas.width = this.options.width * pixelRatio;
-    canvas.height = this.options.height * pixelRatio;
+    canvas.width = this.options.graphWidth * pixelRatio;
+    canvas.height = this.options.graphHeight * pixelRatio;
 
-    // TODO: make this cleaner, use proper css like container
+    const collapseSize = `${fontSize + 2 * padding}px`;
+    container.className = css.graphContainer.className;
+    if (settings.collapse) {
+      container.classList.add(css.graphContainerCollapsed.className);
+      container.style.height = collapseSize;
+    }
     canvas.addEventListener("click", () => {
-      container.style.overflow = "hidden";
-      if (container.style.height) {
-        container.style.height = "";
-      } else {
-        container.style.height = `${fontHeight + 2 * padding}px`;
-      }
+      const nowCollapsed = container.classList.toggle(
+        css.graphContainerCollapsed.className
+      );
+      settings.collapse = nowCollapsed;
+      container.style.height = nowCollapsed ? collapseSize : "";
     });
     container.appendChild(canvas);
 
@@ -115,17 +133,17 @@ export class DebugGraph {
 
     // draw label
     ctx.fillStyle = settings.foreground;
-    ctx.font = `${fontHeight}px sans-serif`;
+    ctx.font = `${fontSize}px sans-serif`;
     ctx.fillText(
       settings.title,
       pixelRatio,
-      fontHeight
+      fontSize
       // this.options.width * this.options.titleToValueRatio
     );
 
     // draw separator
     ctx.fillStyle = settings.foreground;
-    ctx.fillRect(0, fontHeight + padding, canvas.width, padding);
+    ctx.fillRect(0, fontSize + padding, canvas.width, padding);
 
     const sectionName = settings.section;
 
@@ -147,6 +165,8 @@ export class DebugGraph {
       settings,
       canvas,
       ctx,
+      nextIndex: 0,
+      values: [],
     };
   }
 
@@ -156,28 +176,30 @@ export class DebugGraph {
       return; // unknown graph key
     }
 
-    // find new max/min
-    // TODO: allow configurable delta in this case
-    let min = graph.min ? Math.min(graph.min, value) : value - 1;
-    let max = graph.max ? Math.max(graph.max, value) : value + 1;
+    if (graph.values.length >= this.options.graphWidth) {
+      graph.values[graph.nextIndex] = value;
+    } else {
+      graph.values.push(value);
+    }
+    graph.nextIndex = ++graph.nextIndex % this.options.graphWidth;
 
-    // TODO: auto-scale axes
-    const expectedGraphRange = max - min;
+    const [valueMin, valueMax] = graph.values.reduce(
+      (prev, curr) => [Math.min(prev[0], curr), Math.max(prev[1], curr)],
+      [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]
+    );
 
-    // try to move min or max closer to original value to maintain useful scale
-    // const valueRatio = (value - min) / expectedGraphRange;
-    // if (valueRatio > 0.75) {
-    //   // we're near the top of the graph, bring the min up slightly to compensate
-    //   min += expectedGraphRange * this.options.rangeDecayFactor;
-    // } else if (valueRatio < 0.25) {
-    //   // we're near the bottom of the graph, bring the max down slightly to compensate
-    //   max -= expectedGraphRange * this.options.rangeDecayFactor;
-    // }
+    const rangeTooSmall = valueMax - valueMin < graph.settings.minGraphRange;
+    const min = rangeTooSmall
+      ? valueMin - graph.settings.minGraphRange / 2
+      : valueMin;
+    const max = rangeTooSmall
+      ? valueMax + graph.settings.minGraphRange / 2
+      : valueMax;
 
     const pixelRatio = window.devicePixelRatio;
     const padding = pixelRatio;
     // include padding for underline
-    const fontHeight = this.options.fontHeight * pixelRatio + 2 * padding;
+    const fontHeight = this.options.fontSize * pixelRatio + 2 * padding;
     const graphHeight = graph.canvas.height - fontHeight - 3 * padding;
 
     // clear and redraw value
@@ -191,74 +213,74 @@ export class DebugGraph {
     graph.ctx.fillStyle = graph.settings.foreground;
     graph.ctx.textAlign = "right";
     graph.ctx.fillText(
-      `${value}`, // todo: prefix/suffix option
+      `${graph.settings.valuePrefix}${
+        Math.round(value * this.options.roundingFactor) /
+        this.options.roundingFactor
+      }${graph.settings.valueSuffix}`,
       graph.canvas.width,
       fontHeight - 2 * padding,
       graph.canvas.width * (1 - this.options.titleToValueRatio)
     );
 
-    // draw original graph 1 pixel over
-    // TODO: re-scale graph by repositioning/stretching y if min/max changed
-    const graphStartY = fontHeight + padding;
-    let destY = graphStartY;
-    let srcHeight = graphHeight + padding;
-    let dstHeight = graphHeight + padding;
-    if (graph.max !== undefined && value > graph.max) {
-      // new value exceeds previous max so need to rescale upward
-      const deltaRatio = (value - graph.max) / (graph.max - graph.min);
-      destY += deltaRatio * graphHeight;
-      dstHeight -= deltaRatio * graphHeight;
+    if (!graph.settings.collapse) {
+      const graphStartY = graph.canvas.height - graphHeight - padding;
+      // fill graph background
+      graph.ctx.fillStyle = graph.settings.background;
+      graph.ctx.fillRect(
+        0,
+        graphStartY - padding,
+        graph.canvas.width,
+        graphHeight + 2 * padding
+      );
+
+      // draw graph path
+      graph.ctx.strokeStyle = graph.settings.foreground;
+      graph.ctx.lineWidth = pixelRatio; // todo: maybe 1?
+      graph.ctx.beginPath();
+
+      const range = max - min;
+      for (let i = 0, len = graph.values.length; i < len; i++) {
+        // starting from the oldest value
+        const valueIndex = (i + graph.nextIndex) % len;
+        const x = pixelRatio * i;
+        const y =
+          (1 - (graph.values[valueIndex] - min) / range) * graphHeight +
+          graphStartY;
+
+        if (i === 0) {
+          graph.ctx.moveTo(x, y);
+        } else {
+          graph.ctx.lineTo(x, y);
+        }
+      }
+
+      // draw the path from before
+      graph.ctx.stroke();
+
+      if (graph.settings.showRange) {
+        graph.ctx.fillStyle = graph.settings.foreground;
+        graph.ctx.strokeStyle = graph.settings.background;
+        graph.ctx.textAlign = "left";
+        const minText = `${
+          Math.round(min * this.options.roundingFactor) /
+          this.options.roundingFactor
+        }`;
+        const maxText = `${
+          Math.round(max * this.options.roundingFactor) /
+          this.options.roundingFactor
+        }`;
+        const textX = padding;
+        const minTextY = graph.canvas.height - padding;
+        const maxTextY = graphStartY + fontHeight / 2;
+        const textMaxWidth = graph.canvas.width / 2;
+        // draw min text
+        graph.ctx.strokeText(minText, textX, minTextY, textMaxWidth);
+        graph.ctx.fillText(minText, textX, minTextY, textMaxWidth);
+        // draw max text
+        graph.ctx.strokeText(maxText, textX, maxTextY, textMaxWidth);
+        graph.ctx.fillText(maxText, textX, maxTextY, textMaxWidth);
+      }
     }
-    if (graph.min !== undefined && graph.min > value) {
-      // new value below previous min so need to rescale downward
-      const deltaRatio = (graph.min - value) / (graph.max - graph.min);
-      dstHeight -= deltaRatio * graphHeight;
-    }
-
-    // if we adjusted before, new min > old min or new max < old max
-    // if (graph.max !== undefined && graph.max > max) {
-    //   dstHeight -= this.options.rangeDecayFactor * graphHeight;
-    // }
-    // if (graph.min !== undefined && min > graph.min) {
-    //   dstHeight += this.options.rangeDecayFactor * graphHeight;
-    // }
-
-    graph.ctx.drawImage(
-      graph.canvas,
-      0,
-      graphStartY,
-      graph.canvas.width,
-      srcHeight,
-      -pixelRatio,
-      destY,
-      graph.canvas.width,
-      dstHeight
-    );
-
-    // fill new background on right edge
-    graph.ctx.fillStyle = graph.settings.background;
-    graph.ctx.fillRect(
-      graph.canvas.width - pixelRatio,
-      fontHeight,
-      pixelRatio,
-      graph.canvas.height
-    );
-
-    // fill new foreground on right edge
-    // TODO: support fill-to-zero so graph is inverted below zero
-    graph.ctx.fillStyle = graph.settings.foreground;
-    const fillHeight =
-      graph.settings.style === "line" ? pixelRatio : graph.canvas.height;
-    graph.ctx.fillRect(
-      graph.canvas.width - pixelRatio,
-      (1 - (value - min) / (max - min)) * graphHeight + graphStartY,
-      pixelRatio,
-      fillHeight
-    );
-
-    // update max/min
-    graph.min = min;
-    graph.max = max;
   }
 
   private createSection(sectionName: string): HTMLDivElement {
