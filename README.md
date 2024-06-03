@@ -2,7 +2,7 @@
 
 ## TODO: 
 - Add section support
-- Support collapsing graphs
+- Support collapsing graphs properly and option for initial collapse state
 
 
 - Dynamic y-axis which follows the value by decaying min/max towards the current value but not exceeding some minimum distance
