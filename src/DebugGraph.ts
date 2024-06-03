@@ -90,12 +90,24 @@ export class DebugGraph {
     const pixelRatio = window.devicePixelRatio;
     const padding = pixelRatio;
     const fontHeight = this.options.fontHeight * pixelRatio;
+    const container = document.createElement("div");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
     canvas.className = css.graphCanvas.className;
     canvas.width = this.options.width * pixelRatio;
     canvas.height = this.options.height * pixelRatio;
+
+    // TODO: make this cleaner, use proper css like container
+    canvas.addEventListener("click", () => {
+      container.style.overflow = "hidden";
+      if (container.style.height) {
+        container.style.height = "";
+      } else {
+        container.style.height = `${fontHeight + 2 * padding}px`;
+      }
+    });
+    container.appendChild(canvas);
 
     // init canvas to bg
     ctx.fillStyle = settings.background;
@@ -125,10 +137,10 @@ export class DebugGraph {
       }
 
       // then append to section
-      this.sections[sectionName].appendChild(canvas);
+      this.sections[sectionName].appendChild(container);
     } else {
       // just append to root
-      this.rootElement.appendChild(canvas);
+      this.rootElement.appendChild(container);
     }
 
     this.graphs[key] = {
